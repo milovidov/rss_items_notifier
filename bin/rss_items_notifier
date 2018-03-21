@@ -1,0 +1,54 @@
+#!/usr/bin/env ruby
+
+require 'rss_items_notifier'
+require 'optparse'
+require 'json'
+
+check_timer = 5
+rss_url_arg = nil
+state_file_arg = nil
+
+OptionParser.new do |opts|
+  opts.banner = 'Usage: rss_items_notifier [options]'
+
+  opts.on('-u', '--url URL', 'Specify rss url for getting new items') do |url|
+    rss_url_arg = url
+  end
+
+  opts.on('-t', '--timer TIMER', 'Specify rss new items check period') do |timer|
+    check_timer = timer.to_i
+  end
+
+  opts.on('-s', '--state_file_arg FILE', 'Specify state file') do |file|
+    state_file_arg = file
+  end
+
+  opts.separator ''
+  opts.separator 'Common options:'
+
+  opts.on_tail('-h', '--help', 'Show this message') do
+    puts opts
+    exit
+  end
+
+  opts.on_tail('--version', 'Show version') do
+    puts RssItemsNotifier::VERSION
+    exit
+  end
+
+end.parse!
+
+abort('You must specify rss url') unless rss_url_arg
+
+listener = RssItemsNotifier::Listener.new rss_url: rss_url_arg,
+                                          state_file: state_file_arg,
+                                          rss_open_properties: { ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE }
+
+
+loop do
+  listener.obtain_new_items do |item|
+    puts item
+  end
+  listener.save
+  sleep check_timer
+end
